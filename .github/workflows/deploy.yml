@@ -1,0 +1,36 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 103.175.248.244
+          username: trduy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            echo "Deploying jpecom-service..."
+            cd /opt/jpecom-service
+            
+            git pull origin main
+            
+            docker compose down app 2>/dev/null || true
+            docker compose build app --no-cache
+            docker compose up -d
+            
+            sleep 10
+            
+            if docker ps | grep -q "jpecom-service.*Up"; then
+              echo "Deploy successful!"
+              docker logs jpecom-service --tail 5
+            else
+              echo "Deploy failed!"
+              docker logs jpecom-service --tail 20
+              exit 1
+            fi
